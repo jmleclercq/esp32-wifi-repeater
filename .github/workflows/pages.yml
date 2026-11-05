@@ -1,12 +1,17 @@
 name: Web installer
 
 # Publishes the browser installer (ESP Web Tools) with the latest release firmware.
-# Runs after the Build workflow succeeds on a push (a new tag publishes a release
-# there), and can be started by hand.
+# Runs only when it matters: after a release build (a v* tag), when the installer
+# page or this workflow changes, or by hand. Not on every commit.
 on:
   workflow_run:
     workflows: [Build]
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -20,7 +25,12 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    # For workflow_run, head_branch is the tag name when the Build ran for a tag.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
     runs-on: ubuntu-latest
     environment:
       name: github-pages
