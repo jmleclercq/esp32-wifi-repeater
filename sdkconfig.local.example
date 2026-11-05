@@ -1,0 +1,6 @@
+# Copy to sdkconfig.local (git-ignored) and fill in; it is picked up automatically.
+#   idf.py build                                   # picks up sdkconfig.local automatically
+CONFIG_REPEATER_UPSTREAM_SSID="MyRouter"
+CONFIG_REPEATER_UPSTREAM_PASSWORD="router-password"
+CONFIG_REPEATER_AP_SSID="ESP32-Repeater"
+CONFIG_REPEATER_AP_PASSWORD="choose-a-password"

@@ -1,0 +1,24 @@
+menu "WiFi Repeater"
+
+    config REPEATER_UPSTREAM_SSID
+        string "Upstream network SSID (your router)"
+        default "MyRouter"
+
+    config REPEATER_UPSTREAM_PASSWORD
+        string "Upstream network password"
+        default ""
+
+    config REPEATER_AP_SSID
+        string "Repeater access point SSID"
+        default "ESP32-Repeater"
+
+    config REPEATER_AP_PASSWORD
+        string "Repeater access point password (min 8 chars, empty = open)"
+        default "changeme123"
+
+    config REPEATER_AP_MAX_CLIENTS
+        int "Max clients on the access point"
+        range 1 10
+        default 8
+
+endmenu
