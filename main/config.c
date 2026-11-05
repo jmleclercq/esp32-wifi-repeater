@@ -48,6 +48,21 @@ esp_err_t config_save(const repeater_config_t *cfg)
     return err;
 }
 
+esp_err_t config_reset(void)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NS, NVS_READWRITE, &h);
+    if (err != ESP_OK) {
+        return err;
+    }
+    err = nvs_erase_all(h);
+    if (err == ESP_OK) {
+        err = nvs_commit(h);
+    }
+    nvs_close(h);
+    return err;
+}
+
 const char *config_validate(const repeater_config_t *cfg)
 {
     size_t n;

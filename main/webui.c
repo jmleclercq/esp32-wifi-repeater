@@ -6,9 +6,13 @@
 #include <string.h>
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 #include "esp_netif.h"
 #include "esp_system.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
+#include "esp_wifi_ap_get_sta_list.h"
+#include "traffic.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lwip/sockets.h"
@@ -114,18 +118,24 @@ static const char *PAGE_HEAD =
     "body{font-family:system-ui,sans-serif;max-width:30rem;margin:1rem auto;padding:0 1rem;color:#222}"
     "h1{font-size:1.4rem}fieldset{margin:1rem 0;border:1px solid #ccc;border-radius:6px}"
     "label{display:block;margin:.6rem 0}input{display:block;width:100%;padding:.4rem;box-sizing:border-box}"
-    "button{padding:.6rem 1.2rem}table td{padding:.15rem .8rem .15rem 0}.err{color:#b00020}.ok{color:#0a7d2c}"
+    "button{padding:.6rem 1.2rem}table td,table th{padding:.15rem .8rem .15rem 0;text-align:left;white-space:nowrap}.err{color:#b00020}.ok{color:#0a7d2c}"
     "</style></head><body><h1>WiFi Repeater</h1>";
 
-static esp_err_t get_root(httpd_req_t *req)
+static void fmt_bytes(char *out, size_t n, uint64_t b)
 {
-    if (!gate(req)) {
-        return ESP_OK;
+    if (b >= 1024ULL * 1024 * 1024) {
+        snprintf(out, n, "%.2f GB", b / 1073741824.0);
+    } else if (b >= 1024 * 1024) {
+        snprintf(out, n, "%.1f MB", b / 1048576.0);
+    } else {
+        snprintf(out, n, "%.0f KB", b / 1024.0);
     }
-    char buf[96];
-    httpd_resp_set_type(req, "text/html");
-    httpd_resp_sendstr_chunk(req, PAGE_HEAD);
+}
 
+// Status block (also served alone on /status for the live refresh).
+static void send_status(httpd_req_t *req)
+{
+    char buf[200], a[24], b[24];
     esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     esp_netif_ip_info_t ip;
     wifi_ap_record_t rec;
@@ -138,12 +148,77 @@ static esp_err_t get_root(httpd_req_t *req)
     } else {
         httpd_resp_sendstr_chunk(req, "<tr><td>Upstream</td><td class=\"err\">not connected</td></tr>");
     }
-    wifi_sta_list_t list;
-    int clients = (esp_wifi_ap_get_sta_list(&list) == ESP_OK) ? list.num : 0;
-    snprintf(buf, sizeof(buf), "<tr><td>Clients</td><td>%d</td></tr>", clients);
+    uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
+    snprintf(buf, sizeof(buf), "<tr><td>Uptime</td><td>%lud %02luh %02lum</td></tr>", (unsigned long)(up / 86400),
+             (unsigned long)(up / 3600 % 24), (unsigned long)(up / 60 % 60));
+    httpd_resp_sendstr_chunk(req, buf);
+
+    traffic_snapshot_t t;
+    traffic_get(&t);
+    fmt_bytes(a, sizeof(a), t.to_clients);
+    fmt_bytes(b, sizeof(b), t.from_clients);
+    snprintf(buf, sizeof(buf), "<tr><td>Traffic</td><td>&darr; %s &nbsp; &uarr; %s <small>(since boot)</small></td></tr>", a, b);
     httpd_resp_sendstr_chunk(req, buf);
     snprintf(buf, sizeof(buf), "<tr><td>Free heap</td><td>%lu KB</td></tr></table>", (unsigned long)(esp_get_free_heap_size() / 1024));
     httpd_resp_sendstr_chunk(req, buf);
+
+    wifi_sta_list_t list;
+    wifi_sta_mac_ip_list_t ips;
+    memset(&ips, 0, sizeof(ips));
+    int clients = 0;
+    if (esp_wifi_ap_get_sta_list(&list) == ESP_OK) {
+        clients = list.num;
+        esp_wifi_ap_get_sta_list_with_ip(&list, &ips);
+    }
+    snprintf(buf, sizeof(buf), "<h2>Clients (%d)</h2>", clients);
+    httpd_resp_sendstr_chunk(req, buf);
+    if (clients == 0) {
+        httpd_resp_sendstr_chunk(req, "<p>No client connected.</p>");
+        return;
+    }
+    httpd_resp_sendstr_chunk(req, "<table class=\"clients\"><tr><th>IP</th><th>MAC</th><th>Signal</th><th>&darr;</th><th>&uarr;</th></tr>");
+    for (int i = 0; i < clients; i++) {
+        const uint8_t *mac = list.sta[i].mac;
+        char ipstr[16] = "-";
+        for (int k = 0; k < ips.num; k++) {
+            if (memcmp(ips.sta[k].mac, mac, 6) == 0 && ips.sta[k].ip.addr) {
+                snprintf(ipstr, sizeof(ipstr), IPSTR, IP2STR(&ips.sta[k].ip));
+            }
+        }
+        a[0] = b[0] = '-'; a[1] = b[1] = 0;
+        for (int k = 0; k < t.num_clients; k++) {
+            if (memcmp(t.clients[k].mac, mac, 6) == 0) {
+                fmt_bytes(a, sizeof(a), t.clients[k].to_client);
+                fmt_bytes(b, sizeof(b), t.clients[k].from_client);
+            }
+        }
+        snprintf(buf, sizeof(buf), "<tr><td>%s</td><td>" MACSTR "</td><td>%d dBm</td><td>%s</td><td>%s</td></tr>", ipstr,
+                 MAC2STR(mac), list.sta[i].rssi, a, b);
+        httpd_resp_sendstr_chunk(req, buf);
+    }
+    httpd_resp_sendstr_chunk(req, "</table>");
+}
+
+static esp_err_t get_status(httpd_req_t *req)
+{
+    if (!gate(req)) {
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "text/html");
+    send_status(req);
+    return httpd_resp_sendstr_chunk(req, NULL);
+}
+
+static esp_err_t get_root(httpd_req_t *req)
+{
+    if (!gate(req)) {
+        return ESP_OK;
+    }
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_sendstr_chunk(req, PAGE_HEAD);
+    httpd_resp_sendstr_chunk(req, "<div id=\"status\">");
+    send_status(req);
+    httpd_resp_sendstr_chunk(req, "</div>");
 
     httpd_resp_sendstr_chunk(req, "<h2>Settings</h2><form method=\"post\" action=\"/save\">"
                                   "<fieldset><legend>Upstream network (your router, 2.4 GHz)</legend>");
@@ -156,7 +231,10 @@ static esp_err_t get_root(httpd_req_t *req)
     send_password(req, "Password (8+ characters)", "ap_pass");
     httpd_resp_sendstr_chunk(req, "</fieldset><fieldset><legend>This page</legend>");
     send_password(req, "Admin password (user: admin, 8+ characters)", "adm_pass");
-    httpd_resp_sendstr_chunk(req, "</fieldset><button>Save and restart</button></form></body></html>");
+    httpd_resp_sendstr_chunk(req, "</fieldset><button>Save and restart</button></form>"
+                                  "<script>setInterval(function(){fetch('/status').then(function(r){return r.ok?r.text():null})"
+                                  ".then(function(t){if(t)document.getElementById('status').innerHTML=t})},5000)</script>"
+                                  "</body></html>");
     return httpd_resp_sendstr_chunk(req, NULL);
 }
 
@@ -286,6 +364,8 @@ void webui_start(const repeater_config_t *cfg)
     const httpd_uri_t root = { .uri = "/", .method = HTTP_GET, .handler = get_root };
     const httpd_uri_t save = { .uri = "/save", .method = HTTP_POST, .handler = post_save };
     httpd_register_uri_handler(srv, &root);
+    const httpd_uri_t status = { .uri = "/status", .method = HTTP_GET, .handler = get_status };
     httpd_register_uri_handler(srv, &save);
+    httpd_register_uri_handler(srv, &status);
     ESP_LOGW(TAG, "Web UI on http://192.168.4.1/");
 }
