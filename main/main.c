@@ -10,6 +10,8 @@
 #include "nvs_flash.h"
 #include "config.h"
 #include "webui.h"
+#include "traffic.h"
+#include "button.h"
 
 static const char *TAG = "repeater";
 
@@ -32,11 +34,12 @@ static void on_sta_got_ip(void *arg, esp_event_base_t base, int32_t id, void *da
         esp_netif_set_ip4_addr(&dns.ip.u_addr.ip4, 1, 1, 1, 1);
         dns.ip.type = ESP_IPADDR_TYPE_V4;
     }
-    esp_netif_dhcps_stop(s_ap_netif);
-    esp_netif_set_dns_info(s_ap_netif, ESP_NETIF_DNS_MAIN, &dns);
-    uint8_t offer = 1;  // OFFER_DNS
-    esp_netif_dhcps_option(s_ap_netif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &offer, sizeof(offer));
-    esp_netif_dhcps_start(s_ap_netif);
+    // Update the DNS handed to clients WITHOUT restarting the DHCP server:
+    // a restart wipes its lease table, which the web UI uses to show client IPs.
+    esp_err_t e = esp_netif_set_dns_info(s_ap_netif, ESP_NETIF_DNS_MAIN, &dns);
+    if (e != ESP_OK) {
+        ESP_LOGW(TAG, "Could not update DHCP DNS (%s)", esp_err_to_name(e));
+    }
 
     ESP_ERROR_CHECK(esp_netif_napt_enable(s_ap_netif));
     ESP_LOGW(TAG, "NAPT enabled");
@@ -56,13 +59,18 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
     case WIFI_EVENT_STA_START:
         esp_wifi_connect();
         break;
+    case WIFI_EVENT_AP_START:
+        traffic_attach(s_ap_netif);
+        break;
     case WIFI_EVENT_AP_STACONNECTED: {
         const wifi_event_ap_staconnected_t *e = data;
+        traffic_client_connected(e->mac);
         ESP_LOGI(TAG, "Client " MACSTR " joined", MAC2STR(e->mac));
         break;
     }
     case WIFI_EVENT_AP_STADISCONNECTED: {
         const wifi_event_ap_stadisconnected_t *e = data;
+        traffic_client_disconnected(e->mac);
         ESP_LOGI(TAG, "Client " MACSTR " left", MAC2STR(e->mac));
         break;
     }
@@ -90,6 +98,14 @@ void app_main(void)
     IP4_ADDR(&ip.netmask, 255, 255, 255, 0);
     esp_netif_dhcps_stop(s_ap_netif);
     ESP_ERROR_CHECK(esp_netif_set_ip_info(s_ap_netif, &ip));
+    // Offer a DNS server to clients (enabled once, before the server starts;
+    // the address is replaced by the upstream DNS when the uplink comes up).
+    esp_netif_dns_info_t boot_dns = { 0 };
+    esp_netif_set_ip4_addr(&boot_dns.ip.u_addr.ip4, 1, 1, 1, 1);
+    boot_dns.ip.type = ESP_IPADDR_TYPE_V4;
+    ESP_ERROR_CHECK(esp_netif_set_dns_info(s_ap_netif, ESP_NETIF_DNS_MAIN, &boot_dns));
+    uint8_t offer_dns = 1;  // OFFER_DNS
+    ESP_ERROR_CHECK(esp_netif_dhcps_option(s_ap_netif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &offer_dns, sizeof(offer_dns)));
     esp_netif_dhcps_start(s_ap_netif);
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -140,5 +156,6 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     webui_start(&cfg_data);
+    reset_button_start();
 
 }

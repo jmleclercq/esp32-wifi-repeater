@@ -13,6 +13,8 @@ point; traffic between the two is routed with lwIP NAPT.
 - Connects to the strongest access point sharing the upstream SSID
 - WiFi 6 (11ax) on 20 MHz channels, power save off
 - Settings stored in flash (NVS) and editable from a web page, no rebuild needed
+- Live status page: uplink, uptime, total traffic and a per-client table (IP, MAC, signal, download/upload)
+- Hold the BOOT button for 5 s to erase the saved settings
 
 See [docs/roadmap.md](docs/roadmap.md).
 
@@ -38,7 +40,8 @@ Connect to the repeater's WiFi and open **http://192.168.4.1/** (log in as `admi
 <p align="center"><img src="docs/images/web-ui.png" alt="Web configuration page" width="320"></p>
 <p align="center"><em>Rendered from the firmware's page HTML with example status values.</em></p>
 
-- Shows upstream status (channel, RSSI, IP), connected clients and free memory
+- Shows upstream status (channel, RSSI, IP), uptime, total traffic and free memory
+- Lists connected clients with IP, MAC, signal strength and traffic (refreshed every 5 s without reloading, so what you type in the form is kept)
 - Edits the upstream network, the repeater SSID/password and the admin password
 - Password fields are never displayed; leave them blank to keep the current value
 - Saving restarts the repeater
@@ -47,8 +50,13 @@ Security: the page only answers clients of the repeater's own network
 (192.168.4.0/24), never from the upstream side. The admin password defaults to the
 repeater WiFi password until you set a separate one. Passwords must be 8-63 characters.
 
-**Locked out?** Erase the stored settings and fall back to the build-time defaults:
+**Locked out?** Hold the **BOOT** button (GPIO9) for 5 seconds while the repeater is running.
+It erases the saved settings and restarts with the build-time defaults (`sdkconfig.local`,
+or the placeholders from `menuconfig` if you built without it). As a last resort,
 `idf.py -p /dev/ttyACM0 erase-flash` then flash again.
+
+Traffic counters are measured on the repeater's access-point interface (Ethernet frames,
+headers included), per client MAC, and reset on reboot or when a client reconnects.
 
 On Linux, add yourself to the serial group once: `sudo usermod -aG dialout $USER`.
 

@@ -5,6 +5,7 @@
 - [ ] Reproducible throughput benchmark with iperf3
 - [x] Settings stored in NVS
 - [x] Web page for configuration and status (upstream, RSSI, clients)
-- [ ] Traffic counters on the status page
+- [x] Traffic counters and client list on the status page
+- [x] BOOT-button settings reset
 - [ ] OTA updates
 - [ ] CI build with GitHub Actions

@@ -12,5 +12,7 @@ typedef struct {
 // Load settings from NVS, falling back to the Kconfig defaults.
 void config_load(repeater_config_t *cfg);
 esp_err_t config_save(const repeater_config_t *cfg);
+// Erase all saved settings (next boot uses the Kconfig defaults).
+esp_err_t config_reset(void);
 // Returns NULL if valid, otherwise a human-readable error.
 const char *config_validate(const repeater_config_t *cfg);
