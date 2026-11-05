@@ -1,193 +1,37 @@
-# ESP32-C6 WiFi Router (NAT) – Installation Guide
+# ESP32-C6 WiFi Repeater
 
-![ESP32-C6](https://img.shields.io/badge/Platform-ESP32--C6-blue) ![NAT
-Router](https://img.shields.io/badge/Mode-NAT%20Router-orange)
-![Guide](https://img.shields.io/badge/Type-Installation%20Guide-lightgrey)
+A small NAT-based WiFi repeater for the **ESP32-C6**, written with ESP-IDF.
+The board joins your existing WiFi network (station) and exposes its own access
+point; traffic between the two is routed with lwIP NAPT.
 
-This repository provides a **step-by-step installation guide** to
-transform an **ESP32-C6** into a lightweight WiFi NAT router.
-
-⚠️ This project does **not** contain the router firmware itself.  
-It documents how to install and flash the official firmware:
-
-👉 https://github.com/dchristl/esp32_nat_router_extended
-
-------------------------------------------------------------------------
-
-# Table of Contents
-
--   Overview  
--   Hardware Requirements  
--   Software Prerequisites  
--   Identify Serial Port  
--   Test Communication  
--   Firmware Installation  
--   Flash Firmware  
--   Expected Result  
--   Troubleshooting  
--   License  
--   Contribution
-
-------------------------------------------------------------------------
-
-# Overview
-
-This guide explains how to configure an **ESP32-C6** as:
-
--   WiFi Access Point  
--   NAT Router  
--   Lightweight Network Extender  
--   Embedded low-power routing solution
-
-Firmware used:
-
-👉 https://github.com/dchristl/esp32_nat_router_extended
-
-------------------------------------------------------------------------
-
-# Hardware Requirements
-
--   ESP32-C6 development board  
--   USB-C data cable (must support data, not power-only)  
--   Stable 5V / 2A power supply  
--   Linux computer (or compatible with esptool)
-
-------------------------------------------------------------------------
-
-# Software Prerequisites
-
--   Python 3  
--   esptool
-
-Install esptool if needed:
-
-``` bash
-pip install esptool
+```
+ Clients ~~~ [ESP32-C6 AP 192.168.4.1/24]──NAT──[STA]~~~ Router ── Internet
 ```
 
-------------------------------------------------------------------------
+## Status
+Prototype: STA + AP + NAPT, DNS forwarded to clients, automatic reconnection.
+See [docs/roadmap.md](docs/roadmap.md).
 
-# Identify Serial Port
+## Requirements
+- ESP32-C6 board with a USB data cable
+- [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c6/get-started/) v5.5.x
 
-### 1️⃣ List available ports (ESP disconnected)
-
-``` bash
-ls /dev/ttyACM*
+## Build and flash
+```bash
+. ~/esp/esp-idf/export.sh
+cp sdkconfig.local.example sdkconfig.local     # then edit SSIDs and passwords
+idf.py set-target esp32c6
+idf.py build                                   # picks up sdkconfig.local automatically
+idf.py -p /dev/ttyACM0 flash monitor
 ```
+Settings can also be changed with `idf.py menuconfig` under *WiFi Repeater*.
 
-### 2️⃣ Connect the ESP32-C6
+On Linux, add yourself to the serial group once: `sudo usermod -aG dialout $USER`.
 
-Run again:
+## Notes
+- Single 2.4 GHz radio: throughput is shared between upstream and AP, expect tens of Mbit/s at best.
+- The AP channel follows the upstream network's channel.
+- Clients get addresses in 192.168.4.0/24, so the upstream network must use a different subnet.
 
-``` bash
-ls /dev/ttyACM*
-```
-
-👉 The newly detected port corresponds to your ESP32  
-Example: `/dev/ttyACM0`
-
-------------------------------------------------------------------------
-
-# Test Communication
-
-``` bash
-esptool.py --port /dev/ttyACM0 chip_id
-```
-
-Replace the port with yours.
-
-If a **Chip ID** is returned, communication is working correctly.
-
-------------------------------------------------------------------------
-
-# Firmware Installation
-
-Download the latest release:
-
-👉 https://github.com/dchristl/esp32_nat_router_extended/releases/latest
-
-Choose the appropriate file:
-
--   `esp32nat_extended_full_vX.X.X.zip` → Full installation  
--   `esp32nat_extended_update_vX.X.X.zip` → Update
-
-Extract the `.bin` file before flashing.
-
-------------------------------------------------------------------------
-
-# Flash the Firmware
-
-``` bash
-esptool --chip esp32c6 --port /dev/ttyACM0 write_flash 0x0 esp32nat_extended_full_vX.X.X.bin
-```
-
-Adapt:
-
--   Serial port  
--   Exact `.bin` filename
-
-------------------------------------------------------------------------
-
-# Expected Result
-
-After reboot:
-
--   The ESP32-C6 creates a WiFi access point  
--   You can connect to the generated network  
--   The administration interface becomes accessible according to
-    firmware defaults
-
-------------------------------------------------------------------------
-
-# Troubleshooting
-
-## Permission denied on serial port
-
-``` bash
-sudo usermod -a -G dialout $USER
-```
-
-Then log out and log back in.
-
-------------------------------------------------------------------------
-
-## No serial port detected
-
--   Ensure the USB cable supports data  
--   Try another USB port  
--   Verify power supply
-
-------------------------------------------------------------------------
-
-# Important Notice
-
-This repository is only an installation guide.
-
-All routing functionality is provided by:
-
-https://github.com/dchristl/esp32_nat_router_extended
-
-Please refer to the official repository for:
-
--   Firmware source code  
--   Advanced configuration  
--   Licensing details
-
-------------------------------------------------------------------------
-
-# License
-
-This repository contains documentation only.
-
-The NAT router firmware is developed by **dchristl**.  
-Please refer to the official project for licensing terms.
-
-------------------------------------------------------------------------
-
-# Contribution
-
-Contributions are welcome:
-
--   Issues  
--   Pull Requests  
--   Improvements to documentation
+## License
+See [LICENSE](LICENSE).
