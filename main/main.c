@@ -8,6 +8,8 @@
 #include "esp_wifi.h"
 #include "lwip/ip_addr.h"
 #include "nvs_flash.h"
+#include "config.h"
+#include "webui.h"
 
 static const char *TAG = "repeater";
 
@@ -27,7 +29,8 @@ static void on_sta_got_ip(void *arg, esp_event_base_t base, int32_t id, void *da
     esp_netif_dns_info_t dns;
     if (esp_netif_get_dns_info(s_sta_netif, ESP_NETIF_DNS_MAIN, &dns) != ESP_OK ||
         dns.ip.u_addr.ip4.addr == 0) {
-        IP_ADDR4(&dns.ip, 1, 1, 1, 1);
+        esp_netif_set_ip4_addr(&dns.ip.u_addr.ip4, 1, 1, 1, 1);
+        dns.ip.type = ESP_IPADDR_TYPE_V4;
     }
     esp_netif_dhcps_stop(s_ap_netif);
     esp_netif_set_dns_info(s_ap_netif, ESP_NETIF_DNS_MAIN, &dns);
@@ -95,20 +98,33 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, on_sta_disconnected, NULL));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_sta_got_ip, NULL));
 
+    repeater_config_t cfg_data;
+    config_load(&cfg_data);
+    if (config_validate(&cfg_data)) {
+        // Stored/default settings unusable (e.g. weak AP password): keep the AP safe.
+        ESP_LOGE(TAG, "Invalid settings: %s", config_validate(&cfg_data));
+        if (strlen(cfg_data.ap_password) < 8) {
+            strlcpy(cfg_data.ap_password, "changeme123", sizeof(cfg_data.ap_password));
+        }
+        if (strlen(cfg_data.admin_password) < 8) {
+            strlcpy(cfg_data.admin_password, cfg_data.ap_password, sizeof(cfg_data.admin_password));
+        }
+    }
+
     wifi_config_t sta = { 0 };
-    strlcpy((char *)sta.sta.ssid, CONFIG_REPEATER_UPSTREAM_SSID, sizeof(sta.sta.ssid));
-    strlcpy((char *)sta.sta.password, CONFIG_REPEATER_UPSTREAM_PASSWORD, sizeof(sta.sta.password));
+    strlcpy((char *)sta.sta.ssid, cfg_data.upstream_ssid, sizeof(sta.sta.ssid));
+    strlcpy((char *)sta.sta.password, cfg_data.upstream_password, sizeof(sta.sta.password));
 
     // Several APs may share the SSID: pick the strongest, not the first found.
     sta.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
     sta.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
 
     wifi_config_t ap = { 0 };
-    strlcpy((char *)ap.ap.ssid, CONFIG_REPEATER_AP_SSID, sizeof(ap.ap.ssid));
-    strlcpy((char *)ap.ap.password, CONFIG_REPEATER_AP_PASSWORD, sizeof(ap.ap.password));
-    ap.ap.ssid_len = strlen(CONFIG_REPEATER_AP_SSID);
+    strlcpy((char *)ap.ap.ssid, cfg_data.ap_ssid, sizeof(ap.ap.ssid));
+    strlcpy((char *)ap.ap.password, cfg_data.ap_password, sizeof(ap.ap.password));
+    ap.ap.ssid_len = strlen(cfg_data.ap_ssid);
     ap.ap.max_connection = CONFIG_REPEATER_AP_MAX_CLIENTS;
-    ap.ap.authmode = strlen(CONFIG_REPEATER_AP_PASSWORD) >= 8 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
+    ap.ap.authmode = strlen(cfg_data.ap_password) >= 8 ? WIFI_AUTH_WPA2_PSK : WIFI_AUTH_OPEN;
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta));
@@ -122,5 +138,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_protocol(WIFI_IF_AP, proto));
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+
+    webui_start(&cfg_data);
 
 }
