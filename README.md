@@ -1,10 +1,14 @@
-# ESP32-C6 WiFi Repeater
+<p align="center">
+  <img src="docs/images/social-preview.png" alt="ESP32-C6 WiFi Repeater: a small NAT range extender for the ESP32-C6, with a web interface and a browser installer" width="100%">
+</p>
 
-[![Build](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml/badge.svg)](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml)
-[![Release](https://img.shields.io/github/v/release/jmleclercq/esp32-wifi-repeater)](https://github.com/jmleclercq/esp32-wifi-repeater/releases/latest)
-[![License: MIT](https://img.shields.io/github/license/jmleclercq/esp32-wifi-repeater)](LICENSE)
-![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.5-blue)
-![Target](https://img.shields.io/badge/target-ESP32--C6-orange)
+<p align="center">
+  <a href="https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml"><img src="https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/jmleclercq/esp32-wifi-repeater/releases/latest"><img src="https://img.shields.io/github/v/release/jmleclercq/esp32-wifi-repeater" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/jmleclercq/esp32-wifi-repeater" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/ESP--IDF-v5.5-blue" alt="ESP-IDF v5.5">
+  <img src="https://img.shields.io/badge/target-ESP32--C6-orange" alt="Target: ESP32-C6">
+</p>
 
 **A small WiFi range extender for the ESP32-C6.** It joins your existing 2.4 GHz network and
 re-broadcasts its own access point, routing traffic between the two with NAT. Configure it from
