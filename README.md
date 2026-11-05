@@ -39,6 +39,13 @@ cover more chips and options. This one trades breadth for simplicity.
 ## Quick start
 You need an ESP32-C6 board and a USB data cable. No ESP-IDF required.
 
+### Option A: install from your browser
+<p align="center"><a href="https://jmleclercq.github.io/esp32-wifi-repeater/"><img src="https://img.shields.io/badge/%E2%9A%A1%20Install%20from%20your%20browser-0969da?style=for-the-badge" alt="Install from your browser"></a></p>
+
+Open the page in **Chrome, Edge or Opera** on a computer (Firefox and Safari cannot flash over USB), plug the
+board in, click *Install* and pick its serial port. The page always serves the latest release.
+
+### Option B: flash with esptool
 1. Download `esp32c6-wifi-repeater-full.bin` from the [latest release](https://github.com/jmleclercq/esp32-wifi-repeater/releases/latest).
 2. Flash it:
    ```bash

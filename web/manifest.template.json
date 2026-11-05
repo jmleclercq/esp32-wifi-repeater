@@ -1,0 +1,11 @@
+{
+  "name": "ESP32-C6 WiFi Repeater",
+  "version": "__VERSION__",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [{ "path": "firmware.bin", "offset": 0 }]
+    }
+  ]
+}
