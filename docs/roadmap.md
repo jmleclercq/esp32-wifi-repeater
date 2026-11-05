@@ -8,4 +8,4 @@
 - [x] Traffic counters and client list on the status page
 - [x] BOOT-button settings reset
 - [ ] OTA updates
-- [ ] CI build with GitHub Actions
+- [x] CI build with GitHub Actions (firmware attached to each `v*` release)
