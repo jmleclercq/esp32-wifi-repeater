@@ -35,6 +35,9 @@ in flash take precedence.
 ## Web interface
 Connect to the repeater's WiFi and open **http://192.168.4.1/** (log in as `admin`).
 
+<p align="center"><img src="docs/images/web-ui.png" alt="Web configuration page" width="320"></p>
+<p align="center"><em>Rendered from the firmware's page HTML with example status values.</em></p>
+
 - Shows upstream status (channel, RSSI, IP), connected clients and free memory
 - Edits the upstream network, the repeater SSID/password and the admin password
 - Password fields are never displayed; leave them blank to keep the current value
