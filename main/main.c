@@ -18,7 +18,11 @@ static esp_netif_t *s_ap_netif;
 static void on_sta_got_ip(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     const ip_event_got_ip_t *ev = data;
-    ESP_LOGI(TAG, "Upstream IP: " IPSTR " gw " IPSTR, IP2STR(&ev->ip_info.ip), IP2STR(&ev->ip_info.gw));
+    ESP_LOGW(TAG, "Upstream IP: " IPSTR " gw " IPSTR, IP2STR(&ev->ip_info.ip), IP2STR(&ev->ip_info.gw));
+    wifi_ap_record_t rec;
+    if (esp_wifi_sta_get_ap_info(&rec) == ESP_OK) {
+        ESP_LOGW(TAG, "Upstream channel %d, RSSI %d dBm", rec.primary, rec.rssi);
+    }
 
     esp_netif_dns_info_t dns;
     if (esp_netif_get_dns_info(s_sta_netif, ESP_NETIF_DNS_MAIN, &dns) != ESP_OK ||
@@ -32,7 +36,7 @@ static void on_sta_got_ip(void *arg, esp_event_base_t base, int32_t id, void *da
     esp_netif_dhcps_start(s_ap_netif);
 
     ESP_ERROR_CHECK(esp_netif_napt_enable(s_ap_netif));
-    ESP_LOGI(TAG, "NAPT enabled");
+    ESP_LOGW(TAG, "NAPT enabled");
 }
 
 static void on_sta_disconnected(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -95,6 +99,10 @@ void app_main(void)
     strlcpy((char *)sta.sta.ssid, CONFIG_REPEATER_UPSTREAM_SSID, sizeof(sta.sta.ssid));
     strlcpy((char *)sta.sta.password, CONFIG_REPEATER_UPSTREAM_PASSWORD, sizeof(sta.sta.password));
 
+    // Several APs may share the SSID: pick the strongest, not the first found.
+    sta.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
+    sta.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
+
     wifi_config_t ap = { 0 };
     strlcpy((char *)ap.ap.ssid, CONFIG_REPEATER_AP_SSID, sizeof(ap.ap.ssid));
     strlcpy((char *)ap.ap.password, CONFIG_REPEATER_AP_PASSWORD, sizeof(ap.ap.password));
@@ -105,5 +113,14 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap));
+    // Throughput: 20 MHz channels (40 MHz on 2.4 GHz forces 11n and suffers from
+    // interference) -- must be set before start -- and no modem sleep.
+    ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_STA, WIFI_BW_HT20));
+    ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20));
+    const uint8_t proto = WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N | WIFI_PROTOCOL_11AX;
+    ESP_ERROR_CHECK(esp_wifi_set_protocol(WIFI_IF_STA, proto));
+    ESP_ERROR_CHECK(esp_wifi_set_protocol(WIFI_IF_AP, proto));
     ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+
 }
