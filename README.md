@@ -1,5 +1,7 @@
 # ESP32-C6 WiFi Repeater
 
+[![Build](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml/badge.svg)](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml)
+
 A small NAT-based WiFi repeater for the **ESP32-C6**, written with ESP-IDF.
 The board joins your existing WiFi network (station) and exposes its own access
 point; traffic between the two is routed with lwIP NAPT.
@@ -21,6 +23,16 @@ See [docs/roadmap.md](docs/roadmap.md).
 ## Requirements
 - ESP32-C6 board with a USB data cable
 - [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c6/get-started/) v5.5.x
+
+## Pre-built firmware
+Every version tag (`v*`) publishes a ready-to-flash image on the
+[Releases](https://github.com/jmleclercq/esp32-wifi-repeater/releases) page, so ESP-IDF is not needed:
+```bash
+pip install esptool
+esptool --chip esp32c6 --port /dev/ttyACM0 write-flash 0x0 esp32c6-wifi-repeater-full.bin
+```
+It starts with placeholder settings (upstream `MyRouter`, repeater `ESP32-Repeater` / `changeme123`):
+connect to the repeater and set your own from the web page, then change the passwords.
 
 ## Build and flash
 ```bash
