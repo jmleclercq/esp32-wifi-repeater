@@ -1,0 +1,33 @@
+name: Hardware report
+description: Tell me which board you tested (works or not)
+labels: [hardware]
+body:
+  - type: input
+    id: board
+    attributes:
+      label: Board
+      description: Name and vendor, e.g. "ESP32-C6-DevKitC-1 (Espressif)".
+    validations:
+      required: true
+  - type: input
+    id: chip
+    attributes:
+      label: Chip and flash
+      description: From `esptool chip-id` / `flash-id`, e.g. ESP32-C6FH8, 8 MB.
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: [Works fully, Works with problems, Does not work]
+    validations:
+      required: true
+  - type: dropdown
+    id: boot
+    attributes:
+      label: BOOT-button settings reset (hold 5 s, GPIO9)
+      options: [Works, Does not work, Not tested]
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Speed test result, quirks, how you flashed it.
