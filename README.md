@@ -1,81 +1,110 @@
 # ESP32-C6 WiFi Repeater
 
 [![Build](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml/badge.svg)](https://github.com/jmleclercq/esp32-wifi-repeater/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/jmleclercq/esp32-wifi-repeater)](https://github.com/jmleclercq/esp32-wifi-repeater/releases/latest)
+[![License: MIT](https://img.shields.io/github/license/jmleclercq/esp32-wifi-repeater)](LICENSE)
+![ESP-IDF](https://img.shields.io/badge/ESP--IDF-v5.5-blue)
+![Target](https://img.shields.io/badge/target-ESP32--C6-orange)
 
-A small NAT-based WiFi repeater for the **ESP32-C6**, written with ESP-IDF.
-The board joins your existing WiFi network (station) and exposes its own access
-point; traffic between the two is routed with lwIP NAPT.
+**A small WiFi range extender for the ESP32-C6.** It joins your existing 2.4 GHz network and
+re-broadcasts its own access point, routing traffic between the two with NAT. Configure it from
+a web page: no rebuild, no serial console.
+
+<p align="center"><img src="docs/images/web-ui.png" alt="Web configuration and status page" width="320"></p>
+<p align="center"><em>The built-in web page (rendered from the firmware's HTML with example values).</em></p>
 
 ```
- Clients ~~~ [ESP32-C6 AP 192.168.4.1/24]──NAT──[STA]~~~ Router ── Internet
+ Your devices ~~~ [ESP32-C6: AP 192.168.4.1/24]──NAT──[STA] ~~~ Router ── Internet
 ```
+
+## Why this project?
+- **Small and readable.** About 800 lines of plain ESP-IDF C, no external components: a good
+  base to learn from or to adapt.
+- **Made for the ESP32-C6**, with WiFi 6 (11ax) on 20 MHz channels.
+- **Easy to run.** Flash a ready-made image, connect to the repeater, fill in a form.
+
+Looking for a more feature-rich ESP32 NAT router? The established
+[esp32_nat_router](https://github.com/martin-ger/esp32_nat_router) projects and their forks
+cover more chips and options. This one trades breadth for simplicity.
 
 ## Features
-- STA + AP + NAPT, DNS forwarded to clients, automatic reconnection
-- Connects to the strongest access point sharing the upstream SSID
-- WiFi 6 (11ax) on 20 MHz channels, power save off
-- Settings stored in flash (NVS) and editable from a web page, no rebuild needed
-- Live status page: uplink, uptime, total traffic and a per-client table (IP, MAC, signal, download/upload)
-- Hold the BOOT button for 5 s to erase the saved settings
+- NAT repeater (station + access point on one radio), DNS forwarded to clients, automatic reconnection
+- **Best-signal uplink**: when several access points share your SSID (mesh or multi-AP boxes), it picks the strongest
+- **Web interface** at `http://192.168.4.1/`: uplink status, uptime, total traffic, and a live client table
+  (IP, MAC, signal, per-client download/upload), refreshed every 5 s
+- **Settings in flash (NVS)**: upstream network, repeater SSID/password and a separate admin password
+- **BOOT-button reset**: hold it for 5 s to erase the saved settings
+- CI builds on every push; firmware images attached to each release
 
-See [docs/roadmap.md](docs/roadmap.md).
+## Quick start
+You need an ESP32-C6 board and a USB data cable. No ESP-IDF required.
 
-## Requirements
-- ESP32-C6 board with a USB data cable
-- [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c6/get-started/) v5.5.x
+1. Download `esp32c6-wifi-repeater-full.bin` from the [latest release](https://github.com/jmleclercq/esp32-wifi-repeater/releases/latest).
+2. Flash it:
+   ```bash
+   pip install esptool
+   esptool --chip esp32c6 --port /dev/ttyACM0 write-flash 0x0 esp32c6-wifi-repeater-full.bin
+   ```
+   (On Linux, add yourself to the serial group once: `sudo usermod -aG dialout $USER`, then log in again.)
+3. Connect to the WiFi **`ESP32-Repeater`** (password `changeme123`) and open **http://192.168.4.1/**.
+   Log in as `admin` (same password until you set another one).
+4. Enter your router's SSID and password, then **change the repeater and admin passwords**.
+   Saving restarts the repeater. Done.
 
-## Pre-built firmware
-Every version tag (`v*`) publishes a ready-to-flash image on the
-[Releases](https://github.com/jmleclercq/esp32-wifi-repeater/releases) page, so ESP-IDF is not needed:
-```bash
-pip install esptool
-esptool --chip esp32c6 --port /dev/ttyACM0 write-flash 0x0 esp32c6-wifi-repeater-full.bin
-```
-It starts with placeholder settings (upstream `MyRouter`, repeater `ESP32-Repeater` / `changeme123`):
-connect to the repeater and set your own from the web page, then change the passwords.
-
-## Build and flash
-```bash
-. ~/esp/esp-idf/export.sh
-cp sdkconfig.local.example sdkconfig.local     # then edit SSIDs and passwords
-idf.py set-target esp32c6
-idf.py build                                   # picks up sdkconfig.local automatically
-idf.py -p /dev/ttyACM0 flash monitor
-```
-`sdkconfig.local` (git-ignored) and `menuconfig` (*WiFi Repeater*) only provide the
-**initial defaults**. Once you save settings from the web page, the values stored
-in flash take precedence.
+The image starts with placeholder settings: change the passwords right away, since anyone in range who
+knows them can join and administer the repeater.
 
 ## Web interface
-Connect to the repeater's WiFi and open **http://192.168.4.1/** (log in as `admin`).
+The page only answers clients of the repeater's own network (192.168.4.0/24), never from the upstream
+side. It uses plain HTTP with Basic authentication (user `admin`), so it relies on the WPA2 of the repeater
+network rather than HTTPS. Password fields are never displayed: leave them blank to keep the current value.
+Passwords must be 8-63 characters.
 
-<p align="center"><img src="docs/images/web-ui.png" alt="Web configuration page" width="320"></p>
-<p align="center"><em>Rendered from the firmware's page HTML with example status values.</em></p>
+**Locked out?** Hold the **BOOT** button (GPIO9) for 5 seconds while the repeater is running. It erases the
+saved settings and restarts with the build-time defaults. As a last resort:
+`esptool --chip esp32c6 erase-flash`, then flash again.
 
-- Shows upstream status (channel, RSSI, IP), uptime, total traffic and free memory
-- Lists connected clients with IP, MAC, signal strength and traffic (refreshed every 5 s without reloading, so what you type in the form is kept)
-- Edits the upstream network, the repeater SSID/password and the admin password
-- Password fields are never displayed; leave them blank to keep the current value
-- Saving restarts the repeater
+Traffic counters are measured on the access-point interface (Ethernet frames, headers included), per client
+MAC, and reset on reboot or when a client reconnects.
 
-Security: the page only answers clients of the repeater's own network
-(192.168.4.0/24), never from the upstream side. The admin password defaults to the
-repeater WiFi password until you set a separate one. Passwords must be 8-63 characters.
+## Performance and limits
+- Measured with a phone speed test through the repeater: roughly **10 Mbit/s down, 12 Mbit/s up**. The chip has a
+  single 2.4 GHz radio shared between the uplink and the clients, and routes in software: it suits a few light
+  devices, not heavy streaming.
+- **2.4 GHz only**: the upstream network must be reachable on 2.4 GHz.
+- The repeater uses `192.168.4.0/24`, so the upstream network must use a different subnet.
+- No OTA update yet: re-flash over USB.
 
-**Locked out?** Hold the **BOOT** button (GPIO9) for 5 seconds while the repeater is running.
-It erases the saved settings and restarts with the build-time defaults (`sdkconfig.local`,
-or the placeholders from `menuconfig` if you built without it). As a last resort,
-`idf.py -p /dev/ttyACM0 erase-flash` then flash again.
+## Tested hardware
+ESP32-C6FH8 (8 MB flash), USB-Serial/JTAG. The BOOT reset assumes the button is on GPIO9, as on common
+ESP32-C6 dev boards. Other boards: reports welcome in the issues.
 
-Traffic counters are measured on the repeater's access-point interface (Ethernet frames,
-headers included), per client MAC, and reset on reboot or when a client reconnects.
+## Build from source
+Requires [ESP-IDF v5.5.x](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c6/get-started/).
 
-On Linux, add yourself to the serial group once: `sudo usermod -aG dialout $USER`.
+```bash
+. ~/esp/esp-idf/export.sh
+cp sdkconfig.local.example sdkconfig.local     # optional: your own default SSIDs and passwords
+idf.py set-target esp32c6
+idf.py build
+idf.py -p /dev/ttyACM0 flash monitor
+```
+`sdkconfig.local` (git-ignored) and `idf.py menuconfig` (*WiFi Repeater*) only provide the **initial defaults**:
+once you save settings from the web page, the values stored in flash take precedence.
 
-## Notes
-- Single 2.4 GHz radio: throughput is shared between upstream and AP, expect tens of Mbit/s at best.
-- The AP channel follows the upstream network's channel.
-- Clients get addresses in 192.168.4.0/24, so the upstream network must use a different subnet.
+## How it works
+| File | Role |
+|---|---|
+| [`main/main.c`](main/main.c) | WiFi in AP+STA mode, uplink events, DHCP/DNS for clients, NAPT |
+| [`main/config.c`](main/config.c) | Settings in NVS, with Kconfig defaults |
+| [`main/webui.c`](main/webui.c) | HTTP server: status page, settings form, Basic auth |
+| [`main/traffic.c`](main/traffic.c) | Per-client byte counters, hooked on the AP network interface |
+| [`main/button.c`](main/button.c) | BOOT-button long press to reset settings |
+
+The routing itself is lwIP's NAPT, enabled on the access-point interface once the uplink gets an address.
+
+## Roadmap
+See [docs/roadmap.md](docs/roadmap.md).
 
 ## License
-See [LICENSE](LICENSE).
+[MIT](LICENSE)
