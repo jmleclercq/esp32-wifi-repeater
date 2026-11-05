@@ -1,0 +1,51 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste passwords.** Redact your SSID/MAC addresses in logs if you prefer.
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: Shown in the "Firmware" row of the web page (e.g. v1.0.0).
+    validations:
+      required: true
+  - type: input
+    id: board
+    attributes:
+      label: Board and chip
+      description: e.g. ESP32-C6-DevKitC-1, ESP32-C6FH8, flash size.
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options: [Browser installer, esptool with the release image, Built from source]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. ...\n2. ..."
+  - type: input
+    id: router
+    attributes:
+      label: Upstream router / box
+      description: Model, and whether it broadcasts the same SSID on several access points or bands.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Serial log
+      description: Output of `idf.py monitor` (or a serial terminal at 115200 baud) around the problem.
+      render: text

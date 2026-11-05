@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "esp_http_server.h"
+#include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_netif.h"
@@ -148,6 +149,8 @@ static void send_status(httpd_req_t *req)
     } else {
         httpd_resp_sendstr_chunk(req, "<tr><td>Upstream</td><td class=\"err\">not connected</td></tr>");
     }
+    snprintf(buf, sizeof(buf), "<tr><td>Firmware</td><td>%s</td></tr>", esp_app_get_description()->version);
+    httpd_resp_sendstr_chunk(req, buf);
     uint32_t up = (uint32_t)(esp_timer_get_time() / 1000000);
     snprintf(buf, sizeof(buf), "<tr><td>Uptime</td><td>%lud %02luh %02lum</td></tr>", (unsigned long)(up / 86400),
              (unsigned long)(up / 3600 % 24), (unsigned long)(up / 60 % 60));
