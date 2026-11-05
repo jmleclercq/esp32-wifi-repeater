@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ESP32-C6 WiFi Repeater: web installer</title>
+  <meta name="description" content="Flash the ESP32-C6 WiFi repeater firmware from your browser, no tools to install.">
+  <style>
+    :root { --bg:#fff; --fg:#1f2328; --muted:#59636e; --card:#f6f8fa; --line:#d1d9e0; --accent:#0969da; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0d1117; --fg:#e6edf3; --muted:#9198a1; --card:#151b23; --line:#3d444d; --accent:#4493f8; }
+    }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--fg);
+           max-width: 38rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; }
+    h1 { font-size: 1.6rem; margin-bottom: .3rem; }
+    .lead { color: var(--muted); margin-top: 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.2rem; margin: 1.5rem 0; text-align: center; }
+    ol { padding-left: 1.2rem; } li { margin: .4rem 0; }
+    a { color: var(--accent); } code { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: .05rem .3rem; }
+    small, .note { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>ESP32-C6 WiFi Repeater</h1>
+  <p class="lead">Install the firmware straight from your browser. Nothing to download or install.</p>
+
+  <div class="card">
+    <esp-web-install-button manifest="manifest.json">
+      <span slot="unsupported">This browser cannot flash over USB. Use Chrome, Edge or Opera on a computer, or
+        <a href="https://github.com/jmleclercq/esp32-wifi-repeater#quick-start">flash with esptool</a>.</span>
+      <span slot="not-allowed">The installer needs a secure (https) page.</span>
+    </esp-web-install-button>
+  </div>
+
+  <ol>
+    <li>Plug the ESP32-C6 into your computer with a USB <strong>data</strong> cable.</li>
+    <li>Click <strong>Install</strong>, pick the serial port of the board, and confirm.</li>
+    <li>When it finishes, connect to the WiFi <code>ESP32-Repeater</code> (password <code>changeme123</code>)
+        and open <code>http://192.168.4.1/</code> (user <code>admin</code>).</li>
+    <li>Enter your router's name and password, then <strong>change the passwords</strong>.</li>
+  </ol>
+
+  <p class="note">Ticking <em>Erase device</em> in the installer also wipes your saved settings. Leave it unticked to
+  keep them when updating. On Linux, your user must be allowed to use the serial port
+  (<code>sudo usermod -aG dialout $USER</code>, then log in again).</p>
+
+  <p><small>Source code, documentation and releases:
+    <a href="https://github.com/jmleclercq/esp32-wifi-repeater">github.com/jmleclercq/esp32-wifi-repeater</a></small></p>
+
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+</body>
+</html>

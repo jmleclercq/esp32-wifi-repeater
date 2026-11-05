@@ -1,0 +1,49 @@
+name: Web installer
+
+# Publishes the browser installer (ESP Web Tools) with the latest release firmware.
+# Runs after the Build workflow succeeds on a push (a new tag publishes a release
+# there), and can be started by hand.
+on:
+  workflow_run:
+    workflows: [Build]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site from the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir site
+          cp web/index.html site/
+          gh release download --repo "${{ github.repository }}" --pattern 'esp32c6-wifi-repeater-full.bin' --dir site
+          mv site/esp32c6-wifi-repeater-full.bin site/firmware.bin
+          VERSION=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          sed "s/__VERSION__/${VERSION#v}/" web/manifest.template.json > site/manifest.json
+          cat site/manifest.json
+          ls -l site
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
