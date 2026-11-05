@@ -57,7 +57,3 @@ jobs:
           path: site
       - id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          # GitHub Pages can take much longer than the 10 min default to leave
-          # "updating_pages" when its backend is slow.
-          timeout: 1800000
